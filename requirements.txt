@@ -1,5 +1,9 @@
 pypdf
 litellm
 pyyaml
-langchain==0.0.345
-pydantic==1.10.14
+langchain
+pydantic
+langchain-mistralai
+langchain-huggingface
+transformers
+python-multipart

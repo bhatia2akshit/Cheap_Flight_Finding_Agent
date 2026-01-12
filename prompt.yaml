@@ -48,20 +48,43 @@ prompts:
           }
         ]
       }
+  
+  job_description_to_dict:
+    system: |
+      You extract structured data from job descriptions.
+      Return ONLY valid JSON (no markdown, no code fences).
+      If a field is unknown, use null or an empty list.
+    user: |
+      Extract data from the job description. Convert the data into a structured JSON format.
+
+      Job Description text:
+      $content
+
+      Output JSON schema:
+      {
+        "title": string|null,
+        "company": string|null,
+        "location": string|null,
+        "summary": string|null,
+        "requirements": [string],
+        "responsibilities": [string],
+        "skills": [string]
+      }
 
   compare_cv_to_job:
     system: |
-      You are an ATS-style evaluator.
-      Return ONLY valid JSON (no markdown, no code fences).
+      You are an ATS-style evaluator. Return ONLY valid JSON (no markdown, no code fences).
+      $content must be a JSON object with "resume" and "job_description".
+      "match_score" is a weighted percentage (0-100): 50% core skills, 30% bonus skills, 20% experience.
+      "matched_skills" and "missing_skills" require exact keyword matches.
+      "strengths" must highlight quantifiable achievements; "concerns" must flag critical gaps only.
+      "recommended_resume_edits" must be actionable (e.g., "Add 'GCP' under 'Technologies of Interest'").
+      "role_fit_summary" must answer: 1) Core requirements met? 2) Critical gaps? 3) Strong/weak/neutral fit?
+      For malformed input, return {"error": "..."}.
     user: |
       Compare the candidate resume against the job description.
-
-      Candidate resume (raw text or JSON):
-      $resume_input
-
-      Job description:
-      $job_description
-
+      Candidate Application:
+      $content
       Output JSON schema:
       {
         "match_score": number,
@@ -73,23 +96,245 @@ prompts:
         "role_fit_summary": string
       }
 
+
+  optimize_cv:
+    system: |
+      You are an ATS-aware Resume Optimization Engine and Senior Technical Recruiter
+      specializing in software engineering, AI, and data roles.
+
+      Your task is to optimize a candidate’s CV strictly based on the provided inputs:
+      - json of orignal CV.
+      - json of gap analysis.
+
+      Both inputs are provided within a single input as a string.
+      You must not invent or hallucinate any experience, skills, or qualifications.
+      You may only rephrase, reorder, emphasize, or de-emphasize existing information.
+
+      Your goal is to maximize ATS compatibility (achieve 85% match score), keywords alignment, and recruiter relevance.
+
+      You will receive the following inputs:
+
+      1. Parsed CV (JSON or structured text)
+      2. CV–Job Description comparison / gap analysis
+
+      Using these inputs, optimize the CV and return ONLY a valid YAML-formatted JSON-equivalent
+      object following the schema below.
+
+      Optimization rules:
+      - Rewrite bullet points using strong action verbs and job-aligned terminology
+      - Prioritize experience, projects, and skills most relevant to the job description
+      - Improve clarity, conciseness, and impact
+      - Expand abbreviations when ATS-relevant
+      - Avoid keyword stuffing; mirror job language naturally
+      - Prefer skills demonstrated in experience over standalone skill lists
+      - Remove or deprioritize low-relevance content
+      - Do not fabricate metrics or achievements
+
+      Output must be:
+      - Strictly structured
+      - Machine-parsable
+      - Free of explanations, markdown, or comments
+
+      Final instructions:
+      - Output ONLY the YAML object matching the schema above
+      - Do NOT include explanations or reasoning
+      - Do NOT repeat the input CV or job description
+
+    
+    user: |
+      Optimize the candidate CV based on the following input.
+      Return a json object containing the json object of the optimized cv.
+      Input: $content
+
+
+  write_new_cv:
+    system: |
+      You are an expert LaTeX resume generator and ATS-aware CV formatter.
+
+      Your task is to convert a structured resume JSON object into LaTeX code.
+      You must strictly preserve the layout, visual hierarchy, spacing, and
+      section structure defined in the reference LaTeX template provided by the user.
+
+      Output only valid, compilable LaTeX code.
+      Do not include explanations, comments, markdown fences, or extra text.
+
+    user: |
+
+      You will be given:
+        1. A resume JSON object
+        2. A reference LaTeX resume template
+
+      Your tasks:
+        - Convert the JSON content into LaTeX
+        - Match the reference template’s:
+          - document class
+          - packages
+          - margins and spacing
+          - section titles, separators, and ordering
+          - itemize formatting
+          - typography and alignment
+        - Preserve the semantic meaning of each JSON field
+        - Do not invent or omit information
+        - Keep section names identical to the reference template
+        - Keep bullet density concise and ATS-friendly
+        - Escape all LaTeX-sensitive characters correctly
+
+      Mapping rules:
+      - Header block → name, email, phone, links, location (centered)
+      - Profile / title → unnumbered section under the name
+      - Skills → categorized itemize lists
+      - Work experience → subsection per role with:
+          Role title + date (right aligned)
+          Company name on the next line
+          Bullet points underneath
+      - Education → same structure as work experience
+      - Projects → subsection per project with bullets
+      - Languages → simple itemize list
+
+      Formatting constraints:
+      - Use `\section*{}` and `\subsection*{}` exactly as in the reference
+      - Maintain spacing, rules, and list styles
+      - Keep everything on a single-column layout
+      - Ensure the output compiles without modification
+
+      Here is the reference LaTeX template:
+      
+      \documentclass[11pt,a4paper]{article}
+      \usepackage[left=0.75in,top=0.6in,right=0.75in,bottom=0.6in]{geometry}
+      \usepackage{enumitem}
+      \usepackage{hyperref}
+      \usepackage{titlesec}
+      \usepackage{setspace}
+      \usepackage{parskip}
+
+      \setlist[itemize]{leftmargin=*, itemsep=0em}
+      \setstretch{1.0}
+      \titleformat{\section}{\bfseries}{}{0em}{}[\titlerule]
+      \titlespacing{\section}{0pt}{1.5ex}{0.7ex}
+
+      \begin{document}
+
+      \begin{center}
+          \textbf{AKSHIT BHATIA} \\
+          \href{mailto:bhatia2akshit@gmail.com}{bhatia2akshit@gmail.com} \,|\, +49 15168555138 \,|\,
+          \href{https://www.github.com/bhatia2akshit}{github.com/bhatia2akshit} \,|\,
+          \href{https://www.linkedin.com/in/being-akshit-bhatia}{linkedin.com/in/being-akshit-bhatia} \,|\, Bochum, Germany
+      \end{center}
+
+      \section*{Machine Learning Engineer}
+      Results-driven Machine Learning Engineer with expertise in designing and deploying scalable AI solutions. Proven experience in developing multi-tenant interview bots, AI platforms, and image generation pipelines. Skilled in Python, PyTorch, LangChain, and cloud technologies with a focus on automation, optimization, and real-time systems.
+
+      \section*{Skills \& Technologies}
+      \begin{itemize}
+          \item \textbf{Programming Languages:} Python, Java, JavaScript, TypeScript
+          \item \textbf{Frameworks \& Libraries:} FastAPI, Flask, PostgreSQL, PyTorch, LangChain, LangGraph, Django, Weaviate, Redis, Docker, Kubernetes
+          \item \textbf{Cloud Computing:} GCP, Azure, AWS
+          \item \textbf{Agentic AI:} CrewAI, Pydantic AI, SmolAgent
+          \item \textbf{Tools:} Jenkins, Terraform, Airflow, Sentry, Google Ads, Vision Transformers, Diffusion Algorithms, XGBoost, Hugging Face Transformers
+      \end{itemize}
+
+      \section*{Work Experience}
+      \subsection*{ML Engineer \hfill \textit{Jun. 2025 -- Present}}
+      \textbf{Kumo Clouds Solutions GMBH}, Cologne
+      \begin{itemize}
+          \item Developed a multi-tenant interview bot managing real-time, context-aware conversations using machine learning, LLM, and Python.
+          \item Automated information retrieval by integrating a RAG pipeline to extract structured knowledge from large technical documents.
+          \item Enhanced CI/CD pipeline using Jenkins, Terraform, and Docker on Azure, improving software development lifecycle efficiency.
+      \end{itemize}
+
+      \subsection*{Software Engineer \hfill \textit{Apr. 2024 -- Oct. 2024}}
+      \textbf{Auto1}, Berlin
+      \begin{itemize}
+          \item Designed and deployed a LangChain-based AI platform providing real-time city event information to sales teams, reducing manual search time.
+          \item Optimized Google Ads campaigns by automating pause/enable processes, saving costs on unsuccessful campaigns.
+          \item Managed CI/CD for deployment using Jenkins and Airflow, ensuring efficient software delivery.
+      \end{itemize}
+
+      \subsection*{AI Developer (Internship) \hfill \textit{Jul. 2023 -- Oct. 2023}}
+      \textbf{PropertyExpert}, Langenfeld
+      \begin{itemize}
+          \item Built an AI image generation pipeline using Vision Transformers for captioning and Diffusion Algorithms for contextually consistent synthetic images.
+          \item Developed a fake image detection pipeline with a ResNet-50 model, achieving content-agnostic classification for quality assurance.
+      \end{itemize}
+
+      \subsection*{Python Developer (Internship) \hfill \textit{Jul. 2022 -- Feb. 2023}}
+      \textbf{Blue Avenir}, Düsseldorf
+      \begin{itemize}
+          \item Improved predictive analytics pipelines by integrating XGBoost and feature optimization, enhancing model accuracy and performance.
+          \item Developed a document search pipeline using semantic extraction for efficient information retrieval.
+      \end{itemize}
+
+      \subsection*{Research Assistant \hfill \textit{Apr. 2021 -- May 2022}}
+      \textbf{Computational Social Science}, Paderborn
+      \begin{itemize}
+          \item Trained language models (BART, GPT-2, RoBERTa) to generate contextually relevant counter-arguments, contributing to NLP research.
+      \end{itemize}
+
+      \subsection*{Software Engineer \hfill \textit{Oct. 2015 -- Oct. 2019}}
+      \textbf{Sopra Steria}, India
+      \begin{itemize}
+          \item Developed production-grade enterprise applications using Java, EJB, and SQL, ensuring scalability and maintainability.
+          \item Implemented a face-recognition system for secure access control and clustered ticket grouping to streamline workflows.
+      \end{itemize}
+
+      \section*{Education}
+      \subsection*{Master of Science in Informatik \hfill \textit{Oct. 2019 -- Aug. 2024}}
+      \textbf{University of Paderborn}
+      \begin{itemize}
+          \item Thesis: Neural Networks for Fake Image Detection and Generative Modeling, focusing on CNN, CLIP, ResNet-50, and Diffusion Models.
+      \end{itemize}
+
+      \subsection*{Bachelor of Technology in Computer Science \hfill \textit{Aug. 2011 -- May 2015}}
+      \textbf{GGSIPU}, India
+      \begin{itemize}
+          \item Seminar: Implemented PageRank Algorithm in Java.
+          \item Thesis: Developed Inforank, an algorithm to rank Amazon reviews based on information content; published in a journal.
+      \end{itemize}
+
+      \section*{Projects \& Extra}
+      \subsection*{AgentHelpsWriting}
+      \begin{itemize}
+          \item Designed an AgenticAI application to run tools, track state, and expose APIs for frameworks like Trigger.dev.
+      \end{itemize}
+
+      \subsection*{My Next Joke}
+      \begin{itemize}
+          \item Fine-tuned Mistral 7B using LoRA and prompt engineering to generate contextually relevant jokes.
+      \end{itemize}
+
+      \subsection*{Multi-Objective Optimizer}
+      \begin{itemize}
+          \item Implemented a multi-objective neural network optimizer in PyTorch, reducing iterations for parameter convergence.
+      \end{itemize}
+
+      \subsection*{Flight Price Search and Comparison Assistant}
+      \begin{itemize}
+          \item Developed an intelligent assistant to retrieve and compare flight prices across dates and routes using web automation and LLM-based query interpretation.
+      \end{itemize}
+
+      \section*{Languages}
+      \begin{itemize}
+          \item English: Fluent
+          \item German: Business Level Proficiency
+      \end{itemize}
+
+      \end{document}
+
+
+      Here is the resume JSON:
+      $json_optimized_cv
+
+      Now generate the complete LaTeX document.
+
+
   cover_letter:
     system: |
       You write concise, tailored cover letters.
-      Return ONLY valid JSON (no markdown, no code fences).
+      Return the markdown format of the letter.
     user: |
       Write a tailored cover letter for the job using the candidate resume.
       Show the user's enthusiasm to work and explain why hiring him is the best step for the company.
 
-      Candidate resume (raw text or JSON):
-      $resume_input
-
-      Job description:
-      $job_description
-
-      Output JSON schema:
-      {
-        "cover_letter": string,
-        "key_points_used": [string]
-      }
+      CV and Job Description:
+      $content
 
