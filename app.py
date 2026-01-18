@@ -1,6 +1,7 @@
 from typing import Dict
 from fastapi import FastAPI, File, Form, UploadFile
 from pydantic import BaseModel
+import uvicorn
 
 from agent import call_agent, call_manager
 from helper.helper import extract_pdf_text
@@ -24,12 +25,12 @@ def upload_and_submit(jd: str = Form(...), file: UploadFile = File(...)):
     # await call_agent("mistralai/mistral-small-latest", file_text, jd)
     result: Dict = call_manager(file_text, jd)
     print('agent calling is finished.')
-    return {"CV": result['cv'], "Cover Letter": result['cover_letter']}
+    return {"CV": result['cv'], "Cover Letter": result['cover_letter'], "Gap Analysis": result['gap_analysis']}
 
 @app.get("/")
 def index():
 
     return {"Hello": "World"}
 
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

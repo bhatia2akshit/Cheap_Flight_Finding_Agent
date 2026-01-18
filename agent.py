@@ -103,19 +103,6 @@ Opportunity to shape a category-defining product from the ground up.  
 
 """
 
-# agent = create_agent(
-#     model, 
-#     tools = tools,
-#     system_prompt = f"""You are a recruiter at a large staffing agency. 
-#     From the given tools {tools}, please write a new CV and a cover letter which are aligned with the given job description and the original CV.
-    
-#     """
-#     )
-
-# agent.invoke({"messages": [{"role": "user", "content": f"Path to the CV is: {cv_path} and the job description is: {description}"}],
-#             #   "user_preferences": {"style": "technical", "verbosity": "detailed"},
-#               },
-#              )
 
 tools = [extract_pdf_pages, compare_cv_data, write_cover_letter, optimize_cv, write_new_cv]
 
@@ -334,5 +321,6 @@ def call_manager(cv_content: str, job_desc: str) -> Dict:
 
     return {
         "cv": new_cv,
-        "cover_letter": cover_letter
+        "cover_letter": cover_letter,
+        "gap_analysis": comparison_result
     }
