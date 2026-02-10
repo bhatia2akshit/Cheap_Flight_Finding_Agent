@@ -3,10 +3,9 @@ import os
 import re
 from typing import Any
 from fastapi import File
-from litellm import completion
-from pydantic import BaseModel
 from pypdf import PdfReader
 from dotenv import load_dotenv
+from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 
 load_dotenv('.env.local')
 
@@ -24,37 +23,24 @@ def extract_pdf_text(fileObj: File) -> str:
     return "<next-page>".join(parts).strip()
 
 
-def get_model(model: str | None) -> str:
-    if os.environ.get('GEMINI_API_KEY'):
-        print('gemini found')
-        return "gemini/gemini-2.5-flash"
+def init_huggingface_llm():
+    """Initialize HuggingFace LLM with token from Colab secrets"""
     
-    # elif model:
-    #     return model
-    # elif os.environ.get("MISTRAL_API_KEY"):
-    #     return "mistral/mistral-medium-latest"
-        # return "huggingface/HuggingFaceTB/SmolLM3-3B"
-
-
-def litellm_chat(messages: list[dict[str, str]], model: str | None = None, schema: BaseModel = None) -> str:
-    
-    # model_str = model if model else ''
-    response = completion(
-        model=get_model(model),
-        messages=messages,
-        temperature=0.4,
-        response_format=schema,
-        reasoning_effort="low"
-        # api_key=os.getenv("HUGGINGFACEHUB_API_TOKEN")
+    # Using Mistral-7B for better instruction following
+    llm = HuggingFaceEndpoint(
+        repo_id="mistralai/Mistral-7B-Instruct-v0.2",
+        task="text-generation",
+        max_new_tokens=4012,
+        do_sample=False,
+        repetition_penalty=1.03,
+        provider="auto",
     )
-    try:
-        return response["choices"][0]["message"]["content"]
-    except Exception:  # pragma: no cover
-        return str(response)
 
+    # Wrap the LLM with ChatHuggingFace to enable tool calling
+    chat_model = ChatHuggingFace(llm=llm)
 
-_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
-
+    print("✓ HuggingFace ChatModel initialized")
+    return chat_model
 
 def parse_jsonish(text: str) -> dict[str, Any]:
     """
@@ -62,7 +48,7 @@ def parse_jsonish(text: str) -> dict[str, Any]:
     Always returns a dict (either parsed JSON or a wrapper with the raw output).
     """
     candidate = text.strip()
-
+    _JSON_FENCE_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
     fence_match = _JSON_FENCE_RE.search(candidate)
     if fence_match:
         candidate = fence_match.group(1).strip()

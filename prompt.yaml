@@ -1,75 +1,77 @@
 prompts:
-  resume_to_dict:
-    system: |
-      You extract structured data from resumes.
-      Return ONLY valid JSON (no markdown, no code fences).
-      If a field is unknown, use null or an empty list.
-    user: |
-      Extract data from the resume. Convert the data into a structured JSON format.
+  resume_to_dict: |
+    You are an expert CV/resume parser. Your task is to:
 
-      Resume text:
-      $resume_text
+    1. Analyze the CV text provided
+    2. Identify what types of information are present (name, contact, experience, education, skills, etc.)
+    3. Create an appropriate schema for this CV
+    4. Extract all relevant information into a structured format
 
-      Output JSON schema:
-      {
-        "full_name": string|null,
-        "email": string|null,
-        "phone": string|null,
-        "location": string|null,
-        "links": [string],
-        "summary": string|null,
-        "skills": [string],
+    CV TEXT:
+    $content
+
+    INSTRUCTIONS:
+    - First, determine what categories of information exist in this CV
+    - Then extract all information into a clean JSON dictionary
+    - Use clear, descriptive keys (e.g., "name", "email", "phone", "current_role", "companies", "skills")
+    - For experience, include company names, roles, dates if available
+    - For education, include institutions, degrees, years if available
+    - Include any other relevant sections you find (certifications, projects, languages, etc.)
+    - Return ONLY valid JSON, no additional text
+
+    OUTPUT FORMAT (example - adapt based on actual CV content):
+    {{
+        "personal_info": {{
+            "name": "...",
+            "email": "...",
+            "phone": "...",
+            "location": "..."
+        }},
+        "professional_summary": "...",
         "experience": [
-          {
-            "company": string|null,
-            "title": string|null,
-            "start_date": string|null,
-            "end_date": string|null,
-            "location": string|null,
-            "job details": [string]
-          }
+            {{
+                "company": "...",
+                "role": "...",
+                "duration": "...",
+                "responsibilities": ["..."]
+            }}
         ],
         "education": [
-          {
-            "school": string|null,
-            "degree": string|null,
-            "field": string|null,
-            "start_date": string|null,
-            "end_date": string|null
-          }
+            {{
+                "institution": "...",
+                "degree": "...",
+                "year": "..."
+            }}
         ],
-        "certifications": [string],
-        "projects": [
+        "skills": ["..."],
+        "certifications": ["..."],
+        "languages": ["..."],
+        "miscelleanous": ["..."]
+    }}
+
+    Now extract the information from the CV:
+      
+      job_description_to_dict:
+        system: |
+          You extract structured data from job descriptions.
+          Return ONLY valid JSON (no markdown, no code fences).
+          If a field is unknown, use null or an empty list.
+        user: |
+          Extract data from the job description. Convert the data into a structured JSON format.
+
+          Job Description text:
+          $content
+
+          Output JSON schema:
           {
-            "name": string|null,
-            "description": string|null,
-            "links": [string],
-            "tech": [string]
+            "title": string|null,
+            "company": string|null,
+            "location": string|null,
+            "summary": string|null,
+            "requirements": [string],
+            "responsibilities": [string],
+            "skills": [string]
           }
-        ]
-      }
-  
-  job_description_to_dict:
-    system: |
-      You extract structured data from job descriptions.
-      Return ONLY valid JSON (no markdown, no code fences).
-      If a field is unknown, use null or an empty list.
-    user: |
-      Extract data from the job description. Convert the data into a structured JSON format.
-
-      Job Description text:
-      $content
-
-      Output JSON schema:
-      {
-        "title": string|null,
-        "company": string|null,
-        "location": string|null,
-        "summary": string|null,
-        "requirements": [string],
-        "responsibilities": [string],
-        "skills": [string]
-      }
 
   compare_cv_to_job:
     system: |

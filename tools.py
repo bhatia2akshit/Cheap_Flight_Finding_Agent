@@ -1,57 +1,80 @@
 from __future__ import annotations
 
 import json
-import os
-import re
-from typing import Any
+from typing import Any, Dict
 
-from huggingface_hub import login
 from langchain_core.tools import tool
-from pypdf import PdfReader
-from helper.helper import extract_pdf_text, litellm_chat, parse_jsonish
-from prompt_service import Prompt, PromptService
-
-# from env_loader import load_env_file
-from pydantic_schemas import ResumeSchema
+from helper import init_huggingface_llm, parse_jsonish
+from prompt_service import PromptService
 from dotenv import load_dotenv
 
 load_dotenv('.env.local')
 
 
-try:
-    from litellm import completion
-except Exception as e:  # pragma: no cover
-    completion = None  # type: ignore[assignment]
-    _LITELLM_IMPORT_ERROR = e
 
-
-
-# @tool
-def extract_pdf_pages(content: str) -> dict:
-
+@tool
+def extract_cv_information(content: str) -> Dict[str, Any]:
     """
-    Extracts text from a PDF resume, then uses an LLM prompt to convert it into a dict.
-
-    Parameters:
-    - content (str): The extract text from the resume.
-
-    Returns:
-    - dict: JSON of CV.
-    """
-    print(f'Extract text')
-    # print(f'content to CV parsing is: {content}')
-    prompt_name: str = "resume_to_dict"
-    # resume_text = extract_pdf_text(file_path)
-    prompt: Prompt = PromptService().get(prompt_name)
-    print(content)
-    messages = prompt.render_messages(content=content)
-    llm_output = litellm_chat(messages=messages, schema=ResumeSchema)
-    parsed = parse_jsonish(llm_output)
+    Extract structured information from CV text with dynamic schema.
     
-    print('CV is parsed.')
-    print(parsed)
-    return parsed
-
+    This tool analyzes the CV text and:
+    1. Determines what information is present in the CV
+    2. Creates an appropriate schema for that information
+    3. Extracts the data into a structured dictionary
+    
+    Args:
+        content: The raw text extracted from a CV/resume
+        
+    Returns:
+        Dictionary with extracted information based on CV content
+    """
+    
+    # Initialize the LLM for extraction
+    extraction_llm = init_huggingface_llm()
+    extraction_prompt = PromptService.get("cv_extraction")
+    extraction_prompt = extraction_prompt.render_messages(content=content)
+    # Prompt the LLM to analyze and extract information
+    # extraction_prompt =
+    
+    try:
+        # Call the LLM to extract information
+        print("  → Calling LLM for extraction...")
+        response = extraction_llm.invoke(extraction_prompt)
+        
+        # Extract JSON from response
+        response_text = response if isinstance(response, str) else str(response)
+        
+        # Try to find JSON in the response
+        start_idx = response_text.find('{')
+        end_idx = response_text.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1:
+            json_str = response_text[start_idx:end_idx + 1]
+            extracted_data = json.loads(json_str)
+            print("  ✓ Successfully extracted structured data")
+        else:
+            # Fallback: return raw response wrapped in a dict
+            extracted_data = {
+                "raw_extraction": response_text,
+                "note": "Could not parse as JSON, returning raw response"
+            }
+            print("  ⚠ Could not parse JSON, returning raw response")
+        
+        return extracted_data
+        
+    except json.JSONDecodeError as e:
+        print(f"  ❌ JSON parsing failed: {e}")
+        return {
+            "error": "JSON parsing failed",
+            "raw_response": response_text[:500],
+            "message": "The LLM response could not be parsed as JSON"
+        }
+    except Exception as e:
+        print(f"  ❌ Error during extraction: {e}")
+        return {
+            "error": str(e),
+            "message": "An error occurred during extraction"
+        }
 
 # @tool
 def transform_job_description(content: str) -> dict:

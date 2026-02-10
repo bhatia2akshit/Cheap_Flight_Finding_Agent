@@ -3,7 +3,6 @@ litellm
 pyyaml
 langchain
 pydantic
-langchain-mistralai
 langchain-huggingface
 transformers
 python-multipart
